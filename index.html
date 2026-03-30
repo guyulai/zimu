@@ -3,99 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>网盘字幕助手 v3.0 - 实战版</title>
+    <title>网盘字幕助手 v4.0 - 双路实战版</title>
     <style>
-        body { font-family: -apple-system, sans-serif; padding: 20px; background: #f0f2f5; color: #333; }
-        .card { background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); margin-bottom: 20px; }
-        textarea { width: 100%; height: 100px; border: 1px solid #ddd; border-radius: 12px; padding: 12px; font-size: 14px; box-sizing: border-box; outline: none; transition: border 0.3s; }
-        textarea:focus { border-color: #007bff; }
-        .tag { display: inline-block; background: #e7f3ff; color: #007bff; padding: 4px 12px; border-radius: 20px; font-size: 12px; margin: 5px 5px 0 0; font-weight: 600; }
-        #search-btn { width: 100%; background: #007bff; color: white; border: none; padding: 14px; border-radius: 12px; font-size: 16px; font-weight: bold; margin-top: 15px; cursor: pointer; }
-        #search-btn:disabled { background: #ccc; }
-        .result-item { background: white; padding: 15px; border-radius: 12px; margin-bottom: 12px; border-left: 6px solid #ccc; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-        .score-badge { float: right; font-weight: bold; font-size: 18px; }
-        .download-btn { width: 100%; margin-top: 10px; padding: 8px; border-radius: 8px; border: 1px solid #007bff; color: #007bff; background: transparent; font-weight: 600; }
+        body { font-family: -apple-system, sans-serif; padding: 15px; background: #f0f2f5; color: #333; line-height: 1.5; }
+        .card { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        h3 { margin-top: 0; color: #1a73e8; font-size: 18px; }
+        textarea { width: 100%; height: 100px; border: 2px solid #eee; border-radius: 12px; padding: 12px; font-size: 14px; box-sizing: border-box; outline: none; transition: 0.3s; }
+        textarea:focus { border-color: #1a73e8; }
+        .tag-container { margin: 10px 0; min-height: 30px; }
+        .tag { display: inline-block; background: #e8f0fe; color: #1967d2; padding: 4px 12px; border-radius: 20px; font-size: 12px; margin: 0 6px 6px 0; font-weight: bold; }
+        
+        /* 按钮布局 */
+        .btn-group { display: flex; gap: 10px; margin-top: 15px; }
+        .btn { flex: 1; border: none; padding: 15px; border-radius: 12px; font-size: 15px; font-weight: bold; cursor: pointer; transition: 0.2s; color: white; }
+        .btn-google { background: #4285f4; }
+        .btn-pro { background: #34a853; }
+        .btn:active { transform: scale(0.95); opacity: 0.9; }
+
+        .result-item { background: white; padding: 15px; border-radius: 15px; border-left: 6px solid #4285f4; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .copy-btn { width: 100%; margin-top: 10px; padding: 10px; border-radius: 8px; border: 1.5px dashed #4285f4; color: #4285f4; background: #f8f9fa; font-weight: bold; }
     </style>
 </head>
 <body>
-    <div class="card">
-        <h3>🎬 第一步：粘贴网盘文件名</h3>
-        <textarea id="name-input" placeholder="请在这里长按粘贴..."></textarea>
-        <div id="tags-container"></div>
-        <button id="search-btn">立即搜索字幕</button>
+
+<div class="card">
+    <h3>🎬 粘贴文件名</h3>
+    <textarea id="name-input" placeholder="长按粘贴电影文件名..."></textarea>
+    
+    <div id="tags-container" class="tag-container"></div>
+
+    <div class="btn-group">
+        <button class="btn btn-google" id="google-btn">谷歌全网搜</button>
+        <button class="btn btn-pro" id="pro-btn">专业站</button>
     </div>
-    <div id="results-list"></div>
+</div>
 
-    <script>
-        const input = document.getElementById('name-input');
-        const tagsBox = document.getElementById('tags-container');
-        const searchBtn = document.getElementById('search-btn');
-        const resultsList = document.getElementById('results-list');
-        
-        const tagMap = {
-            "4k": "💎 4K UHD", "2160p": "💎 4K UHD", "uhd": "💎 4K UHD",
-            "1080p": "🎬 1080P", "fhd": "🎬 1080P",
-            "web": "🌐 WEB-DL", "web-dl": "🌐 WEB-DL", "webdl": "🌐 WEB-DL",
-            "bluray": "💿 BluRay", "bd": "💿 BluRay", "remux": "💿 BluRay"
-        };
+<div id="results-list"></div>
 
-        let currentTags = { year: '', source: '', resolution: '', cleanName: '' };
+<script>
+    const input = document.getElementById('name-input');
+    const tagsBox = document.getElementById('tags-container');
+    const googleBtn = document.getElementById('google-btn');
+    const proBtn = document.getElementById('pro-btn');
+    const resultsList = document.getElementById('results-list');
 
-        input.oninput = () => {
-            const rawName = input.value.trim();
-            if (!rawName) return;
+    let currentInfo = { name: '', year: '' };
 
-            // 1. 提取电影名 (抓取年份之前的所有内容)
-            const nameMatch = rawName.match(/^(.+?)\b(?:19|20)\d{2}\b/i);
-            currentTags.cleanName = nameMatch ? nameMatch[1].replace(/\./g, ' ').trim() : rawName;
+    // 自动解析逻辑
+    input.oninput = () => {
+        const raw = input.value.trim();
+        if (!raw) return;
 
-            // 2. 识别年份
-            currentTags.year = rawName.match(/\b(19|20)\d{2}\b/)?.[0] || "";
-            
-            // 3. 识别来源和分辨率
-            const lowerName = rawName.toLowerCase();
-            const rawSource = lowerName.match(/bluray|bd|web-dl|web|nf|hdtv|remux/i)?.[0] || "";
-            currentTags.source = tagMap[rawSource] || (rawSource ? rawSource.toUpperCase() : "");
+        // 1. 提取纯净电影名 (提取到年份前)
+        const nameMatch = raw.match(/^(.+?)\b(?:19|20)\d{2}\b/i);
+        currentInfo.name = nameMatch ? nameMatch[1].replace(/\./g, ' ').trim() : raw.split('.')[0];
 
-            const rawRes = lowerName.match(/4k|2160p|1080p|720p|uhd|fhd/i)?.[0] || "";
-            currentTags.resolution = tagMap[rawRes] || (rawRes ? rawRes.toUpperCase() : "");
-            
-            tagsBox.innerHTML = `
-                ${currentTags.year ? `<span class="tag">📅 ${currentTags.year}</span>` : ''}
-                ${currentTags.resolution ? `<span class="tag">${currentTags.resolution}</span>` : ''}
-                ${currentTags.source ? `<span class="tag">${currentTags.source}</span>` : ''}
-            `;
-        };
+        // 2. 提取年份
+        currentInfo.year = raw.match(/\b(19|20)\d{2}\b/)?.[0] || "";
 
-        searchBtn.onclick = () => {
-            if (!input.value.trim()) return alert("请先粘贴文件名！");
-            
-            // 构造谷歌搜索关键词
-            const query = `${currentTags.cleanName} ${currentTags.year} 字幕`.trim();
-            const googleUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
-            
-            // 动真格：直接打开搜索页
-            window.open(googleUrl, '_blank');
+        // 显示标签
+        tagsBox.innerHTML = `
+            ${currentInfo.name ? `<span class="tag">📽️ ${currentInfo.name}</span>` : ''}
+            ${currentInfo.year ? `<span class="tag">📅 ${currentInfo.year}</span>` : ''}
+        `;
+    };
 
-            // 同时在下方显示一条下载提醒，方便复制原名
-            renderAlert(input.value.trim());
-        };
+    // 谷歌搜索：带上“下载”和“.srt”咒语
+    googleBtn.onclick = () => {
+        if (!input.value) return;
+        const query = `${currentInfo.name} ${currentInfo.year} .srt 下载`;
+        window.open(`https://www.google.com/search?q=${encodeURIComponent(query)}`, '_blank');
+        showCopyArea();
+    };
 
-        function renderAlert(originalName) {
-            resultsList.innerHTML = `
-                <div class="result-item" style="border-color: #007bff">
-                    <div style="font-weight: bold; margin-bottom: 5px;">✅ 已为您开启谷歌搜索</div>
-                    <div style="font-size: 12px; color: #888;">别忘了在下载字幕后，点击下方按钮复制原名进行重命名。</div>
-                    <button class="download-btn" onclick="copyName('${originalName}')">点击复制视频原名</button>
-                </div>
-            `;
-        }
+    // 专业站搜索：直接去字幕库
+    proBtn.onclick = () => {
+        if (!input.value) return;
+        const query = `${currentInfo.name} ${currentInfo.year}`;
+        // 跳转到字幕库搜索页
+        window.open(`https://www.zimuku.org/search?q=${encodeURIComponent(query)}`, '_blank');
+        showCopyArea();
+    };
 
-        function copyName(name) {
-            navigator.clipboard.writeText(name).then(() => {
-                alert("原名已复制！");
-            });
-        }
-    </script>
+    function showCopyArea() {
+        resultsList.innerHTML = `
+            <div class="result-item">
+                <div style="font-size: 13px; color: #666;">💡 搜到字幕下载后，点击下方复制原名：</div>
+                <button class="copy-btn" onclick="copyToClipboard()">📋 复制视频原名 (重命名用)</button>
+            </div>
+        `;
+    }
+
+    function copyToClipboard() {
+        navigator.clipboard.writeText(input.value.trim()).then(() => {
+            alert("已复制！下载好字幕后直接粘贴重命名即可。");
+        });
+    }
+</script>
+
 </body>
 </html>
