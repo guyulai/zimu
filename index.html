@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>网盘字幕助手</title>
+    <title>网盘字幕助手 v2.0</title>
     <style>
         body { font-family: -apple-system, sans-serif; padding: 20px; background: #f0f2f5; color: #333; }
         .card { background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); margin-bottom: 20px; }
@@ -32,20 +32,36 @@
         const searchBtn = document.getElementById('search-btn');
         const resultsList = document.getElementById('results-list');
         
-        let currentTags = { year: '', source: '' };
+        // 标签映射字典：将各种写法统一化
+        const tagMap = {
+            "4k": "💎 4K UHD", "2160p": "💎 4K UHD", "uhd": "💎 4K UHD",
+            "1080p": "🎬 1080P", "fhd": "🎬 1080P",
+            "web": "🌐 WEB-DL", "web-dl": "🌐 WEB-DL", "webdl": "🌐 WEB-DL",
+            "bluray": "💿 BluRay", "bd": "💿 BluRay", "remux": "💿 BluRay"
+        };
 
-        // 识别基因的“滤网”
+        let currentTags = { year: '', source: '', resolution: '' };
+
         input.oninput = () => {
-            const name = input.value.trim();
+            const name = input.value.trim().toLowerCase();
             if (!name) return;
-            // 抓取 19xx 或 20xx 的年份
+
+            // 1. 抓取年份 (19xx 或 20xx)
             currentTags.year = name.match(/\b(19|20)\d{2}\b/)?.[0] || "";
-            // 增强版滤网：增加了 web 关键词，支持识别 WEB/WEB-DL
-            currentTags.source = name.match(/bluray|bd|web-dl|web|nf|hdtv/i)?.[0]?.toLowerCase() || "";
             
+            // 2. 抓取来源并映射
+            const rawSource = name.match(/bluray|bd|web-dl|web|nf|hdtv|remux/i)?.[0] || "";
+            currentTags.source = tagMap[rawSource] || (rawSource ? rawSource.toUpperCase() : "");
+
+            // 3. 抓取分辨率并映射
+            const rawRes = name.match(/4k|2160p|1080p|720p|uhd|fhd/i)?.[0] || "";
+            currentTags.resolution = tagMap[rawRes] || (rawRes ? rawRes.toUpperCase() : "");
+            
+            // 渲染漂亮标签
             tagsBox.innerHTML = `
                 ${currentTags.year ? `<span class="tag">📅 ${currentTags.year}</span>` : ''}
-                ${currentTags.source ? `<span class="tag">💿 ${currentTags.source.toUpperCase()}</span>` : ''}
+                ${currentTags.resolution ? `<span class="tag">${currentTags.resolution}</span>` : ''}
+                ${currentTags.source ? `<span class="tag">${currentTags.source}</span>` : ''}
             `;
         };
 
@@ -57,16 +73,17 @@
             searchBtn.disabled = true;
 
             setTimeout(() => {
-                // 模拟搜索数据，你可以看到打分逻辑是如何运作的
+                // 模拟数据测试打分逻辑
                 const mockData = [
-                    { name: "字幕A.chs.ass", year: "2026", source: "web", format: 'ass', downloads: 1200 },
-                    { name: "字幕B.srt", year: "2018", source: "bluray", format: 'srt', downloads: 500 }
+                    { name: "字幕A.chs.ass", year: "2026", source: "🌐 WEB-DL", res: "💎 4K UHD", format: 'ass' },
+                    { name: "字幕B.srt", year: "2018", source: "💿 BluRay", res: "🎬 1080P", format: 'srt' }
                 ];
 
                 const scored = mockData.map(sub => {
-                    let score = 20; // 基础分
-                    if (sub.year === currentTags.year && currentTags.year) score += 40;
-                    if (sub.source === currentTags.source && currentTags.source) score += 30;
+                    let score = 10; 
+                    if (sub.year === currentTags.year) score += 30;
+                    if (sub.res === currentTags.resolution) score += 30;
+                    if (sub.source === currentTags.source) score += 20;
                     if (sub.format === 'ass') score += 10;
                     return { ...sub, score };
                 }).sort((a, b) => b.score - a.score);
@@ -74,17 +91,17 @@
                 render(scored, name);
                 searchBtn.innerText = "立即搜索字幕";
                 searchBtn.disabled = false;
-            }, 800);
+            }, 600);
         };
 
         function render(data, originalName) {
             resultsList.innerHTML = data.map(sub => {
-                const color = sub.score >= 80 ? '#28a745' : (sub.score >= 60 ? '#ffc107' : '#6c757d');
+                const color = sub.score >= 80 ? '#28a745' : (sub.score >= 50 ? '#ffc107' : '#6c757d');
                 return `
                     <div class="result-item" style="border-color: ${color}">
                         <span class="score-badge" style="color: ${color}">${sub.score}分</span>
                         <div style="font-weight: bold; margin-bottom: 5px;">${sub.name}</div>
-                        <div style="font-size: 12px; color: #888;">格式: ${sub.format.toUpperCase()} | 下载: ${sub.downloads}</div>
+                        <div style="font-size: 12px; color: #888;">匹配维度: ${sub.res} / ${sub.source}</div>
                         <button class="download-btn" onclick="copyAndDownload('${originalName}')">下载并自动复制原名</button>
                     </div>
                 `;
@@ -92,10 +109,8 @@
         }
 
         function copyAndDownload(name) {
-            // 核心功能：自动将视频原名存入剪贴板
             navigator.clipboard.writeText(name).then(() => {
                 alert("文件名已复制！请在下载后去文件管家粘贴重命名。");
-                console.log("正在下载...");
             });
         }
     </script>
