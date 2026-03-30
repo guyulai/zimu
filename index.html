@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>网盘字幕助手 v2.0</title>
+    <title>网盘字幕助手 v3.0 - 实战版</title>
     <style>
         body { font-family: -apple-system, sans-serif; padding: 20px; background: #f0f2f5; color: #333; }
         .card { background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); margin-bottom: 20px; }
@@ -32,7 +32,6 @@
         const searchBtn = document.getElementById('search-btn');
         const resultsList = document.getElementById('results-list');
         
-        // 标签映射字典：将各种写法统一化
         const tagMap = {
             "4k": "💎 4K UHD", "2160p": "💎 4K UHD", "uhd": "💎 4K UHD",
             "1080p": "🎬 1080P", "fhd": "🎬 1080P",
@@ -40,24 +39,27 @@
             "bluray": "💿 BluRay", "bd": "💿 BluRay", "remux": "💿 BluRay"
         };
 
-        let currentTags = { year: '', source: '', resolution: '' };
+        let currentTags = { year: '', source: '', resolution: '', cleanName: '' };
 
         input.oninput = () => {
-            const name = input.value.trim().toLowerCase();
-            if (!name) return;
+            const rawName = input.value.trim();
+            if (!rawName) return;
 
-            // 1. 抓取年份 (19xx 或 20xx)
-            currentTags.year = name.match(/\b(19|20)\d{2}\b/)?.[0] || "";
+            // 1. 提取电影名 (抓取年份之前的所有内容)
+            const nameMatch = rawName.match(/^(.+?)\b(?:19|20)\d{2}\b/i);
+            currentTags.cleanName = nameMatch ? nameMatch[1].replace(/\./g, ' ').trim() : rawName;
+
+            // 2. 识别年份
+            currentTags.year = rawName.match(/\b(19|20)\d{2}\b/)?.[0] || "";
             
-            // 2. 抓取来源并映射
-            const rawSource = name.match(/bluray|bd|web-dl|web|nf|hdtv|remux/i)?.[0] || "";
+            // 3. 识别来源和分辨率
+            const lowerName = rawName.toLowerCase();
+            const rawSource = lowerName.match(/bluray|bd|web-dl|web|nf|hdtv|remux/i)?.[0] || "";
             currentTags.source = tagMap[rawSource] || (rawSource ? rawSource.toUpperCase() : "");
 
-            // 3. 抓取分辨率并映射
-            const rawRes = name.match(/4k|2160p|1080p|720p|uhd|fhd/i)?.[0] || "";
+            const rawRes = lowerName.match(/4k|2160p|1080p|720p|uhd|fhd/i)?.[0] || "";
             currentTags.resolution = tagMap[rawRes] || (rawRes ? rawRes.toUpperCase() : "");
             
-            // 渲染漂亮标签
             tagsBox.innerHTML = `
                 ${currentTags.year ? `<span class="tag">📅 ${currentTags.year}</span>` : ''}
                 ${currentTags.resolution ? `<span class="tag">${currentTags.resolution}</span>` : ''}
@@ -66,51 +68,32 @@
         };
 
         searchBtn.onclick = () => {
-            const name = input.value.trim();
-            if (!name) return alert("内容为空！");
+            if (!input.value.trim()) return alert("请先粘贴文件名！");
             
-            searchBtn.innerText = "正在搜寻情报...";
-            searchBtn.disabled = true;
+            // 构造谷歌搜索关键词
+            const query = `${currentTags.cleanName} ${currentTags.year} 字幕`.trim();
+            const googleUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+            
+            // 动真格：直接打开搜索页
+            window.open(googleUrl, '_blank');
 
-            setTimeout(() => {
-                // 模拟数据测试打分逻辑
-                const mockData = [
-                    { name: "字幕A.chs.ass", year: "2026", source: "🌐 WEB-DL", res: "💎 4K UHD", format: 'ass' },
-                    { name: "字幕B.srt", year: "2018", source: "💿 BluRay", res: "🎬 1080P", format: 'srt' }
-                ];
-
-                const scored = mockData.map(sub => {
-                    let score = 10; 
-                    if (sub.year === currentTags.year) score += 30;
-                    if (sub.res === currentTags.resolution) score += 30;
-                    if (sub.source === currentTags.source) score += 20;
-                    if (sub.format === 'ass') score += 10;
-                    return { ...sub, score };
-                }).sort((a, b) => b.score - a.score);
-
-                render(scored, name);
-                searchBtn.innerText = "立即搜索字幕";
-                searchBtn.disabled = false;
-            }, 600);
+            // 同时在下方显示一条下载提醒，方便复制原名
+            renderAlert(input.value.trim());
         };
 
-        function render(data, originalName) {
-            resultsList.innerHTML = data.map(sub => {
-                const color = sub.score >= 80 ? '#28a745' : (sub.score >= 50 ? '#ffc107' : '#6c757d');
-                return `
-                    <div class="result-item" style="border-color: ${color}">
-                        <span class="score-badge" style="color: ${color}">${sub.score}分</span>
-                        <div style="font-weight: bold; margin-bottom: 5px;">${sub.name}</div>
-                        <div style="font-size: 12px; color: #888;">匹配维度: ${sub.res} / ${sub.source}</div>
-                        <button class="download-btn" onclick="copyAndDownload('${originalName}')">下载并自动复制原名</button>
-                    </div>
-                `;
-            }).join('');
+        function renderAlert(originalName) {
+            resultsList.innerHTML = `
+                <div class="result-item" style="border-color: #007bff">
+                    <div style="font-weight: bold; margin-bottom: 5px;">✅ 已为您开启谷歌搜索</div>
+                    <div style="font-size: 12px; color: #888;">别忘了在下载字幕后，点击下方按钮复制原名进行重命名。</div>
+                    <button class="download-btn" onclick="copyName('${originalName}')">点击复制视频原名</button>
+                </div>
+            `;
         }
 
-        function copyAndDownload(name) {
+        function copyName(name) {
             navigator.clipboard.writeText(name).then(() => {
-                alert("文件名已复制！请在下载后去文件管家粘贴重命名。");
+                alert("原名已复制！");
             });
         }
     </script>
