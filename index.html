@@ -34,12 +34,14 @@
         
         let currentTags = { year: '', source: '' };
 
-        // 识别基因
+        // 识别基因的“滤网”
         input.oninput = () => {
             const name = input.value.trim();
             if (!name) return;
+            // 抓取 19xx 或 20xx 的年份
             currentTags.year = name.match(/\b(19|20)\d{2}\b/)?.[0] || "";
-            currentTags.source = name.match(/bluray|bd|web-dl|nf|hdtv/i)?.[0]?.toLowerCase() || "";
+            // 增强版滤网：增加了 web 关键词，支持识别 WEB/WEB-DL
+            currentTags.source = name.match(/bluray|bd|web-dl|web|nf|hdtv/i)?.[0]?.toLowerCase() || "";
             
             tagsBox.innerHTML = `
                 ${currentTags.year ? `<span class="tag">📅 ${currentTags.year}</span>` : ''}
@@ -47,7 +49,6 @@
             `;
         };
 
-        // 模拟搜索与打分
         searchBtn.onclick = () => {
             const name = input.value.trim();
             if (!name) return alert("内容为空！");
@@ -56,10 +57,10 @@
             searchBtn.disabled = true;
 
             setTimeout(() => {
-                // 模拟获取的数据
+                // 模拟搜索数据，你可以看到打分逻辑是如何运作的
                 const mockData = [
-                    { name: "字幕A.chs.ass", year: currentTags.year, source: currentTags.source, format: 'ass', downloads: 1200 },
-                    { name: "字幕B.srt", year: "2018", source: "web-dl", format: 'srt', downloads: 500 }
+                    { name: "字幕A.chs.ass", year: "2026", source: "web", format: 'ass', downloads: 1200 },
+                    { name: "字幕B.srt", year: "2018", source: "bluray", format: 'srt', downloads: 500 }
                 ];
 
                 const scored = mockData.map(sub => {
@@ -91,9 +92,9 @@
         }
 
         function copyAndDownload(name) {
+            // 核心功能：自动将视频原名存入剪贴板
             navigator.clipboard.writeText(name).then(() => {
                 alert("文件名已复制！请在下载后去文件管家粘贴重命名。");
-                // 此处模拟下载行为
                 console.log("正在下载...");
             });
         }
